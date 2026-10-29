@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Room Monitoring System</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #f2f4f7;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .unit {
+            color: #777;
+            margin-top: 5px;
+        }
+
+        .status-section {
+            margin-top: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .status {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+
+        .status h2 {
+            margin-bottom: 15px;
+        }
+
+        .normal {
+            color: green;
+            font-weight: bold;
+            font-size: 25px;
+        }
+
+        .alert {
+            color: red;
+            font-weight: bold;
+            font-size: 25px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            color: #777;
+        }
+
+        @media (max-width: 700px) {
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .status-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Smart Room Monitoring System</h1>
+
+    <p class="subtitle">
+        IoT-Based Environmental Monitoring and Automation
+    </p>
+
+    <div class="cards">
+
+        <div class="card">
+            <h2>Temperature</h2>
+            <div class="value" id="temperature">24.0</div>
+            <div class="unit">°C</div>
+        </div>
+
+        <div class="card">
+            <h2>Humidity</h2>
+            <div class="value" id="humidity">40</div>
+            <div class="unit">%</div>
+        </div>
+
+        <div class="card">
+            <h2>Light Value (ADC)</h2>
+            <div class="value" id="light">1001</div>
+            <div class="unit">ADC</div>
+        </div>
+
+    </div>
+
+    <div class="status-section">
+
+        <div class="status">
+            <h2>System Alert</h2>
+            <div id="alert" class="normal">NORMAL</div>
+        </div>
+
+        <div class="status">
+            <h2>LED Status</h2>
+            <div id="led" class="normal">OFF</div>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Last updated: <span id="time">--</span>
+    </div>
+
+</div>
+
+
+<!-- MQTT.js library -->
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+<script>
+
+    // MQTT connection details
+    const broker = "ws://broker.hivemq.com:8000/mqtt";
+    const topic = "smartroom/data";
+
+    // Connect to MQTT broker
+    const client = mqtt.connect(broker, {
+        clientId: "SmartRoomDashboard_" + Math.random().toString(16).substr(2, 8)
+    });
+
+
+    // MQTT connected
+    client.on("connect", function () {
+
+        console.log("Connected to MQTT broker");
+
+        document.getElementById("alert").innerText = "MQTT CONNECTED";
+
+        client.subscribe(topic, function (error) {
+
+            if (error) {
+                console.error("Subscription failed:", error);
+            } else {
+                console.log("Subscribed to:", topic);
+            }
+
+        });
+
+    });
+
+
+    // Receive MQTT messages
+    client.on("message", function (topic, message) {
+
+        try {
+
+            // Convert MQTT message into JSON
+            const data = JSON.parse(message.toString());
+
+            console.log("Received:", data);
+
+
+            // Update temperature
+            document.getElementById("temperature").innerText =
+                data.temperature.toFixed(1);
+
+
+            // Update humidity
+            document.getElementById("humidity").innerText =
+                data.humidity.toFixed(1);
+
+
+            // Update light
+            document.getElementById("light").innerText =
+                data.light;
+
+
+            // Update alert
+            const alertElement = document.getElementById("alert");
+
+            if (data.alert === true) {
+
+                alertElement.innerText = "ALERT";
+                alertElement.className = "alert";
+
+            } else {
+
+                alertElement.innerText = "NORMAL";
+                alertElement.className = "normal";
+
+            }
+
+
+            // Update LED
+            const ledElement = document.getElementById("led");
+
+            if (data.led === true) {
+
+                ledElement.innerText = "ON";
+                ledElement.className = "alert";
+
+            } else {
+
+                ledElement.innerText = "OFF";
+                ledElement.className = "normal";
+
+            }
+
+
+            // Update timestamp
+            document.getElementById("time").innerText =
+                new Date().toLocaleTimeString();
+
+        }
+
+        catch (error) {
+
+            console.error("Invalid MQTT message:", error);
+
+        }
+
+    });
+
+
+    // MQTT connection error
+    client.on("error", function (error) {
+
+        console.error("MQTT Error:", error);
+
+    });
+
+
+    // MQTT disconnected
+    client.on("offline", function () {
+
+        console.log("MQTT disconnected");
+
+    });
+
+</script>
+
+</body>
+</html>
